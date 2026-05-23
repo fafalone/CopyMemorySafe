@@ -9,7 +9,9 @@ This works by modifying the `CONTEXT` structure, which contains among other thin
 
 `CONTEXT` and many other definitions in this project are entirely different for 32bit and 64bit, so the requirements are as follows:
 
-VB6: Standalone. No dependencies. 32bit definitions are included.
-twinBASIC: Requires Windows Development Library for twinBASIC, added via References->Available packages. This is just code, there's no binary to be distributed.
+VB6: Standalone. No dependencies. 32bit definitions are included.\
+twinBASIC: Requires Windows Development Library for twinBASIC, added via References->Available packages. This is just code, there's no binary to be distributed.\
 
-For both, just add modSafeCopy.bas to your project and use CopyMemorySafe in place of CopyMemory. Note you'll have to use VarPtr/StrPtr/ObjPtr since neither VB6 nor tB supports As Any in local functions.
+For both, just add modSafeCopy.bas to your project and use CopyMemorySafe in place of CopyMemory. Note you'll have to use VarPtr/StrPtr/ObjPtr since neither VB6 nor tB supports As Any in local functions.\
+
+**NOTE:** In twinBASIC it currently only works in compiled binaries.

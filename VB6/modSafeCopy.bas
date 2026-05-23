@@ -624,15 +624,9 @@ Done:
 Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
  #Else
  Public Sub CopyMemorySafe(ByVal pDest As Long, ByVal pSrc As Long, ByVal Length As Long)
- Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
+Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
 #End If
  If pDest = 0 Or pSrc = 0 Then Exit Sub
- Dim IsIDE As Boolean
- Debug.Assert MakeTrue(IsIDE)
- If IsIDE Then
-     CopyMemory ByVal pDest, ByVal pSrc, Length
-     Exit Sub
- End If
  Dim hVeh As LongPtr
  hVeh = AddVectoredExceptionHandler(1, AddressOf VectoredHandler)
  CopyMemory ByVal pDest, ByVal pSrc, Length

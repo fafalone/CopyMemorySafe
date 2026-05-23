@@ -1,6 +1,8 @@
 # CopyMemorySafe
 Intro to Vectored Exception Handling: Crash-proof CopyMemory
 
+<img width="475" height="286" alt="image" src="https://github.com/user-attachments/assets/42336545-6c33-46e7-a4b6-102a111c3222" />
+
 It's been a long standing problem that access violations like a bad address for `CopyMemory` and other exceptions can't be handled by `On Error`. One solution to that is Vectored Exception Handling (VEH). You can register a procedure to handle true exceptions like access violations, then set it to skip the offending instruction. 
 
 This is a small module to introduce the concept that allows you to call `CopyMemory` safely, your app will not crash even if you supply an invalid address. If an invalid address is provided, the operation is skipped and it returns False.

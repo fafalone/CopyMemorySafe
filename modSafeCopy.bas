@@ -1,27 +1,47 @@
 Attribute VB_Name = "modSafeCopy"
 Option Explicit
 
-'USE WINDEVLIB IN TWINBASIC
-'x64 support uses many different definitions
-'These definitions are x86 only!
-'References->Available packages then check "Windows Development Library for twinBASIC"
+'******************************************************
+'modSafeCopy.bas v1.1
+'by Jon Johnson
+'(c) 2026
+'
+'Provides an introduction to Vectored Exception Handling
+'via a CopyMemory alternative that won't crash from an
+'access violation attempting to read/write a bad address.
+'If a bad address is passed, the operation is skipped.
+'This is done by creating a handler for exceptions that
+'normally crash the app/host. 
+'
+'Usage:
+' Use CopyMemorySafe in place of CopyMemory (RtlMoveMemory)
+' You'll need to use VarPtr/StrPtr since local functions
+'  can't use As Any arguments.
+'
+'Updates:
+' -v1.1 - Add local copy of 64bit defs to eliminate depends
+'         so VBA can also use this.
+'
+'Definitions taken from Windows Development Library for twinBASIC
+'You can remove all these if you have that package present.
+'
+' More details and up to date version:
+'  https://github.com/fafalone/CopyMemorySafe
+'
+'******************************************************
 
-#If TWINBASIC = 0 Then
+#If VBA7 = 0 Then
 Private Enum LongPtr: [_]: End Enum
-
+#End If
 Private Const STATUS_ACCESS_VIOLATION = &HC0000005
-
-Private Declare Function AddVectoredExceptionHandler Lib "kernel32" (ByVal First As Long, ByVal Handler As LongPtr) As LongPtr
-Private Declare Function RemoveVectoredExceptionHandler Lib "kernel32" (ByVal Handle As LongPtr) As Long
-Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+Private Const EXCEPTION_EXECUTE_HANDLER = 1
+Private Const EXCEPTION_CONTINUE_SEARCH = 0
+Private Const EXCEPTION_CONTINUE_EXECUTION = (-1)
 Private Type EXCEPTION_POINTERS
     ExceptionRecord As LongPtr 'PEXCEPTION_RECORD
     ContextRecord As LongPtr 'PCONTEXT
 End Type
 
-Private Const EXCEPTION_EXECUTE_HANDLER = 1
-Private Const EXCEPTION_CONTINUE_SEARCH = 0
-Private Const EXCEPTION_CONTINUE_EXECUTION = (-1)
 
 Private Enum EXCEPTION_FLAGS
     EXCEPTION_NONCONTINUABLE = &H1  ' Noncontinuable exception
@@ -44,6 +64,150 @@ Private Type EXCEPTION_RECORD
     NumberParameters As Long
     ExceptionInformation(0 To (EXCEPTION_MAXIMUM_PARAMETERS - 1)) As LongPtr
 End Type
+
+
+#If Win64 Then
+Private Declare PtrSafe Function AddVectoredExceptionHandler Lib "kernel32" (ByVal First As Long, ByVal Handler As LongPtr) As LongPtr
+Private Declare PtrSafe Function RemoveVectoredExceptionHandler Lib "kernel32" (ByVal Handle As LongPtr) As Long
+Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+
+Public Enum EXCEPTION_CONTEXT_FLAGS
+    CONTEXT_AMD64 = &H00100000
+    CONTEXT_CONTROL = (CONTEXT_AMD64 Or &H00000001)
+    CONTEXT_INTEGER = (CONTEXT_AMD64 Or &H00000002)
+    CONTEXT_SEGMENTS = (CONTEXT_AMD64 Or &H00000004)
+    CONTEXT_FLOATING_POINT = (CONTEXT_AMD64 Or &H00000008)
+    CONTEXT_DEBUG_REGISTERS = (CONTEXT_AMD64 Or &H00000010)
+    CONTEXT_FULL = (CONTEXT_CONTROL Or CONTEXT_INTEGER Or CONTEXT_FLOATING_POINT)
+    CONTEXT_ALL = (CONTEXT_CONTROL Or CONTEXT_INTEGER Or CONTEXT_SEGMENTS Or CONTEXT_FLOATING_POINT Or CONTEXT_DEBUG_REGISTERS)
+    CONTEXT_XSTATE = (CONTEXT_AMD64 Or &H00000040)
+    CONTEXT_KERNEL_CET = (CONTEXT_AMD64 Or &H00000080)
+    CONTEXT_EXCEPTION_ACTIVE = &H08000000
+    CONTEXT_SERVICE_ACTIVE = &H10000000
+    CONTEXT_EXCEPTION_REQUEST = &H40000000
+    CONTEXT_EXCEPTION_REPORTING = &H80000000
+'  CONTEXT_UNWOUND_TO_CALL flag is set by the unwinder if it
+'  has unwound to a call site, and cleared whenever it unwinds
+'  through a trap frame.
+    CONTEXT_UNWOUND_TO_CALL = &H20000000
+End Enum
+
+Public Type M128A
+    Low As LongLong
+    High As LongLong
+End Type
+Public Type XSAVE_FORMAT
+    ControlWord As Integer
+    StatusWord As Integer
+    TagWord As Byte
+    Reserved1 As Byte
+    ErrorOpcode As Integer
+    ErrorOffset As Long
+    ErrorSelector As Integer
+    Reserved2 As Integer
+    DataOffset As Long
+    DataSelector As Integer
+    Reserved3 As Integer
+    MxCsr As Long
+    MxCsr_Mask As Long
+    FloatRegisters(0 To 7) As M128A
+    #If Win64 Then
+    XmmRegisters(0 To 15) As M128A
+    Reserved4(0 To 95) As Byte
+    #Else
+    XmmRegisters(0 To 7) As M128A
+    Reserved4(0 To 223) As Byte
+    #End If
+End Type
+
+Public Type CONTEXT
+    ' Register parameter home addresses.
+    ' N.B. These fields are for convience - they could be used to extend the
+    '      context record in the future.
+    P1Home As LongLong
+    P2Home As LongLong
+    P3Home As LongLong
+    P4Home As LongLong
+    P5Home As LongLong
+    P6Home As LongLong
+    ' Control flags.
+    ContextFlags As EXCEPTION_CONTEXT_FLAGS
+    MxCsr As Long
+    ' Segment Registers and processor flags.
+    SegCs As Integer
+    SegDs As Integer
+    SegEs As Integer
+    SegFs As Integer
+    SegGs As Integer
+    SegSs As Integer
+    EFlags As Long
+    ' Debug registers
+    Dr0 As LongLong
+    Dr1 As LongLong
+    Dr2 As LongLong
+    Dr3 As LongLong
+    Dr6 As LongLong
+    Dr7 As LongLong
+    ' Integer registers.
+    Rax As LongLong
+    Rcx As LongLong
+    Rdx As LongLong
+    Rbx As LongLong
+    Rsp As LongLong
+    Rbp As LongLong
+    Rsi As LongLong
+    Rdi As LongLong
+    R8 As LongLong
+    R9 As LongLong
+    R10 As LongLong
+    R11 As LongLong
+    R12 As LongLong
+    R13 As LongLong
+    R14 As LongLong
+    R15 As LongLong
+    ' Program counter.
+    Rip As LongLong
+    ' Floating point state.
+    'union {
+    FltSave As XSAVE_FORMAT 'XMM_SAVE_AREA32
+    '    struct {
+    '        M128A Header[2];
+    '        M128A Legacy[8];
+    '        M128A Xmm0;
+    '        M128A Xmm1;
+    '        M128A Xmm2;
+    '        M128A Xmm3;
+    '        M128A Xmm4;
+    '        M128A Xmm5;
+    '        M128A Xmm6;
+    '        M128A Xmm7;
+    '        M128A Xmm8;
+    '        M128A Xmm9;
+    '        M128A Xmm10;
+    '        M128A Xmm11;
+    '        M128A Xmm12;
+    '        M128A Xmm13;
+    '        M128A Xmm14;
+    '        M128A Xmm15;
+    '    } DUMMYSTRUCTNAME;
+    '} DUMMYUNIONNAME;
+    ' Vector registers.
+    VectorRegister(0 To 25) As M128A
+    VectorControl As LongLong
+    ' Special debug control registers.
+    DebugControl As LongLong
+    LastBranchToRip As LongLong
+    LastBranchFromRip As LongLong
+    LastExceptionToRip As LongLong
+    LastExceptionFromRip As LongLong
+End Type
+
+#Else
+Private Declare Function AddVectoredExceptionHandler Lib "kernel32" (ByVal First As Long, ByVal Handler As LongPtr) As LongPtr
+Private Declare Function RemoveVectoredExceptionHandler Lib "kernel32" (ByVal Handle As LongPtr) As Long
+Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+
+
 Private Enum EXCEPTION_CONTEXT_FLAGS
     CONTEXT_i386 = &H10000     ' this assumes that i386 and
     CONTEXT_i486 = &H10000     ' i486 have identical context records
@@ -620,14 +784,14 @@ Done:
  End Function
  
  #If TWINBASIC Then
- [Debuggable(False)]
+[Debuggable(False)]
  #End If
  #If VBA7 Then
  Public Sub CopyMemorySafe(ByVal pDest As LongPtr, ByVal pSrc As LongPtr, ByVal Length As LongPtr)
-Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
- #Else
+ Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
+  #Else
  Public Sub CopyMemorySafe(ByVal pDest As Long, ByVal pSrc As Long, ByVal Length As Long)
-Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
+ Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
  #End If
  If pDest = 0 Or pSrc = 0 Then Exit Sub
  Dim hVeh As LongPtr

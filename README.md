@@ -11,3 +11,5 @@ This works by modifying the `CONTEXT` structure, which contains among other thin
 
 VB6: Standalone. No dependencies. 32bit definitions are included.
 twinBASIC: Requires Windows Development Library for twinBASIC, added via References->Available packages. This is just code, there's no binary to be distributed.
+
+For both, just add modSafeCopy.bas to your project and use CopyMemorySafe in place of CopyMemory. Note you'll have to use VarPtr/StrPtr/ObjPtr since neither VB6 nor tB supports As Any in local functions.

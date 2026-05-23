@@ -1,8 +1,9 @@
 Attribute VB_Name = "modSafeCopy"
+
 Option Explicit
 
 '******************************************************
-'modSafeCopy.bas v1.1
+'modSafeCopy.bas v1.2
 'by Jon Johnson
 '(c) 2026
 '
@@ -11,16 +12,30 @@ Option Explicit
 'access violation attempting to read/write a bad address.
 'If a bad address is passed, the operation is skipped.
 'This is done by creating a handler for exceptions that
-'normally crash the app/host. 
+'normally crash the app/host.
 '
 'Usage:
 ' Use CopyMemorySafe in place of CopyMemory (RtlMoveMemory)
 ' You'll need to use VarPtr/StrPtr since local functions
 '  can't use As Any arguments.
 '
+' NOTE: In twinBASIC, at the time of this writing it only
+'   works in compiled binaries due to a bug. An unsafe 
+'   operation is used if called from the IDE.
+'
+' NOTE: In VBA, due to macro security features, the file 
+'  must be saved in a Trusted Location.
+'
+'
 'Updates:
+' -v1.2 
+'   - CopyMemorySafe is now a function that returns 
+'     False if an exception occured.
+'   - Check if twinBASIC is in IDE, use unsafe op if
+'     it is. General cleanup and add usage notes.
+'
 ' -v1.1 - Add local copy of 64bit defs to eliminate depends
-'         so VBA can also use this.
+'         so VBA can also be used.
 '
 'Definitions taken from Windows Development Library for twinBASIC
 'You can remove all these if you have that package present.
@@ -29,6 +44,8 @@ Option Explicit
 '  https://github.com/fafalone/CopyMemorySafe
 '
 '******************************************************
+
+Private bHandled As Boolean
 
 #If VBA7 = 0 Then
 Private Enum LongPtr: [_]: End Enum
@@ -71,18 +88,18 @@ Private Declare PtrSafe Function AddVectoredExceptionHandler Lib "kernel32" (ByV
 Private Declare PtrSafe Function RemoveVectoredExceptionHandler Lib "kernel32" (ByVal Handle As LongPtr) As Long
 Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
 
-Private Enum EXCEPTION_CONTEXT_FLAGS
-    CONTEXT_AMD64 = &H00100000
-    CONTEXT_CONTROL = (CONTEXT_AMD64 Or &H00000001)
-    CONTEXT_INTEGER = (CONTEXT_AMD64 Or &H00000002)
-    CONTEXT_SEGMENTS = (CONTEXT_AMD64 Or &H00000004)
-    CONTEXT_FLOATING_POINT = (CONTEXT_AMD64 Or &H00000008)
-    CONTEXT_DEBUG_REGISTERS = (CONTEXT_AMD64 Or &H00000010)
+Public Enum EXCEPTION_CONTEXT_FLAGS
+    CONTEXT_AMD64 = &H100000
+    CONTEXT_CONTROL = (CONTEXT_AMD64 Or &H1)
+    CONTEXT_INTEGER = (CONTEXT_AMD64 Or &H2)
+    CONTEXT_SEGMENTS = (CONTEXT_AMD64 Or &H4)
+    CONTEXT_FLOATING_POINT = (CONTEXT_AMD64 Or &H8)
+    CONTEXT_DEBUG_REGISTERS = (CONTEXT_AMD64 Or &H10)
     CONTEXT_FULL = (CONTEXT_CONTROL Or CONTEXT_INTEGER Or CONTEXT_FLOATING_POINT)
     CONTEXT_ALL = (CONTEXT_CONTROL Or CONTEXT_INTEGER Or CONTEXT_SEGMENTS Or CONTEXT_FLOATING_POINT Or CONTEXT_DEBUG_REGISTERS)
-    CONTEXT_XSTATE = (CONTEXT_AMD64 Or &H00000040)
-    CONTEXT_KERNEL_CET = (CONTEXT_AMD64 Or &H00000080)
-    CONTEXT_EXCEPTION_ACTIVE = &H08000000
+    CONTEXT_XSTATE = (CONTEXT_AMD64 Or &H40)
+    CONTEXT_KERNEL_CET = (CONTEXT_AMD64 Or &H80)
+    CONTEXT_EXCEPTION_ACTIVE = &H8000000
     CONTEXT_SERVICE_ACTIVE = &H10000000
     CONTEXT_EXCEPTION_REQUEST = &H40000000
     CONTEXT_EXCEPTION_REPORTING = &H80000000
@@ -92,11 +109,11 @@ Private Enum EXCEPTION_CONTEXT_FLAGS
     CONTEXT_UNWOUND_TO_CALL = &H20000000
 End Enum
 
-Private Type M128A
+Public Type M128A
     Low As LongLong
     High As LongLong
 End Type
-Private Type XSAVE_FORMAT
+Public Type XSAVE_FORMAT
     ControlWord As Integer
     StatusWord As Integer
     TagWord As Byte
@@ -120,7 +137,7 @@ Private Type XSAVE_FORMAT
     #End If
 End Type
 
-Private Type CONTEXT
+Public Type CONTEXT
     ' Register parameter home addresses.
     ' N.B. These fields are for convience - they could be used to extend the
     '      context record in the future.
@@ -306,6 +323,7 @@ Private Function VectoredHandler(ExceptionInfo As EXCEPTION_POINTERS) As Long
      CopyMemory tRecord, ByVal pRecord, LenB(tRecord)
      CopyMemory tContext, ByVal pContext, LenB(tContext)
      If tRecord.ExceptionCode = STATUS_ACCESS_VIOLATION Then
+        bHandled = True
         Dim cbInstr As Long
         #If Win64 Then
         cbInstr = InstructionLength(tContext.Rip)
@@ -778,27 +796,20 @@ Done:
  End Function
  #End If
  
- Private Function MakeTrue( _
-                 ByRef bValue As Boolean) As Boolean
-     MakeTrue = True: bValue = True
- End Function
  
  #If VBA7 Then
- Public Sub CopyMemorySafe(ByVal pDest As LongPtr, ByVal pSrc As LongPtr, ByVal Length As LongPtr)
- Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
+ Public Function CopyMemorySafe(ByVal pDest As LongPtr, ByVal pSrc As LongPtr, ByVal Length As LongPtr) As Boolean
   #Else
- Public Sub CopyMemorySafe(ByVal pDest As Long, ByVal pSrc As Long, ByVal Length As Long)
- Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
+ Public Function CopyMemorySafe(ByVal pDest As Long, ByVal pSrc As Long, ByVal Length As Long) As Boolean
  #End If
- If pDest = 0 Or pSrc = 0 Then Exit Sub
+ bHandled = False
+ If pDest = 0 Or pSrc = 0 Then Exit Function
  #If TWINBASIC Then
-'Currently a bug is preventing this from working in the IDE
- Dim IsIDE As Boolean
- Debug.Assert MakeTrue(IsIDE)
- If IsIDE Then
-     CopyMemory ByVal pDest, ByVal pSrc, Length
-     Exit Sub
- End If
+     'not currently working in IDE
+     If App.IsInIDE Then
+          CopyMemory ByVal pDest, ByVal pSrc, Length
+          Exit Function
+     End If
  #End If
  Dim hVeh As LongPtr
  hVeh = AddVectoredExceptionHandler(1, AddressOf VectoredHandler)
@@ -806,6 +817,8 @@ Done:
  If hVeh <> 0 Then
      RemoveVectoredExceptionHandler hVeh
  End If
- End Sub
+ If bHandled = False Then CopyMemorySafe = True
+ End Function
+
 
 

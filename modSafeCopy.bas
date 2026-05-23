@@ -778,9 +778,11 @@ Done:
  End Function
  #End If
  
- #If TWINBASIC Then
-[Debuggable(False)]
- #End If
+ Private Function MakeTrue( _
+                 ByRef bValue As Boolean) As Boolean
+     MakeTrue = True: bValue = True
+ End Function
+ 
  #If VBA7 Then
  Public Sub CopyMemorySafe(ByVal pDest As LongPtr, ByVal pSrc As LongPtr, ByVal Length As LongPtr)
  Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
@@ -789,6 +791,15 @@ Done:
  Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. "
  #End If
  If pDest = 0 Or pSrc = 0 Then Exit Sub
+ #If TWINBASIC Then
+'Currently a bug is preventing this from working in the IDE
+ Dim IsIDE As Boolean
+ Debug.Assert MakeTrue(IsIDE)
+ If IsIDE Then
+     CopyMemory ByVal pDest, ByVal pSrc, Length
+     Exit Sub
+ End If
+ #End If
  Dim hVeh As LongPtr
  hVeh = AddVectoredExceptionHandler(1, AddressOf VectoredHandler)
  CopyMemory ByVal pDest, ByVal pSrc, Length

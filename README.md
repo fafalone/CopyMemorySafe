@@ -14,4 +14,4 @@ twinBASIC: Requires Windows Development Library for twinBASIC, added via Referen
 
 For both, just add modSafeCopy.bas to your project and use CopyMemorySafe in place of CopyMemory. Note you'll have to use VarPtr/StrPtr/ObjPtr since neither VB6 nor tB supports As Any in local functions.\
 
-**NOTE:** In twinBASIC the CopyMemorySafe method is marked `[Debuggable(False)]` due to it not currently working in the IDE otherwise.
+**NOTE:** In twinBASIC this currently only works in compiled exes.

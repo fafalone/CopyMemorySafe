@@ -71,7 +71,7 @@ Private Declare PtrSafe Function AddVectoredExceptionHandler Lib "kernel32" (ByV
 Private Declare PtrSafe Function RemoveVectoredExceptionHandler Lib "kernel32" (ByVal Handle As LongPtr) As Long
 Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
 
-Public Enum EXCEPTION_CONTEXT_FLAGS
+Private Enum EXCEPTION_CONTEXT_FLAGS
     CONTEXT_AMD64 = &H00100000
     CONTEXT_CONTROL = (CONTEXT_AMD64 Or &H00000001)
     CONTEXT_INTEGER = (CONTEXT_AMD64 Or &H00000002)
@@ -92,11 +92,11 @@ Public Enum EXCEPTION_CONTEXT_FLAGS
     CONTEXT_UNWOUND_TO_CALL = &H20000000
 End Enum
 
-Public Type M128A
+Private Type M128A
     Low As LongLong
     High As LongLong
 End Type
-Public Type XSAVE_FORMAT
+Private Type XSAVE_FORMAT
     ControlWord As Integer
     StatusWord As Integer
     TagWord As Byte
@@ -120,7 +120,7 @@ Public Type XSAVE_FORMAT
     #End If
 End Type
 
-Public Type CONTEXT
+Private Type CONTEXT
     ' Register parameter home addresses.
     ' N.B. These fields are for convience - they could be used to extend the
     '      context record in the future.

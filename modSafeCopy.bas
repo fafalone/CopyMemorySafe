@@ -778,11 +778,6 @@ Done:
  End Function
  #End If
  
- Private Function MakeTrue( _
-                 ByRef bValue As Boolean) As Boolean
-     MakeTrue = True: bValue = True
- End Function
- 
  #If TWINBASIC Then
 [Debuggable(False)]
  #End If

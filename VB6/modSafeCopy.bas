@@ -621,10 +621,11 @@ Done:
  
  #If VBA7 Then
  Public Sub CopyMemorySafe(ByVal pDest As LongPtr, ByVal pSrc As LongPtr, ByVal Length As LongPtr)
+Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
  #Else
  Public Sub CopyMemorySafe(ByVal pDest As Long, ByVal pSrc As Long, ByVal Length As Long)
-Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
- #End If
+ Attribute CopyMemorySafe.VB_Description = "A crash-proof CopyMemory wrapper. If an invalid address is passed, the operation is skipped. **COMPILED ONLY** In IDE only checks for null pointers."
+#End If
  If pDest = 0 Or pSrc = 0 Then Exit Sub
  Dim IsIDE As Boolean
  Debug.Assert MakeTrue(IsIDE)

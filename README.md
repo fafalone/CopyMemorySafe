@@ -14,6 +14,8 @@ This works by modifying the `CONTEXT` structure, which contains among other thin
 This is a standalone module with no dependencies.\
 The definitions were copied from Windows Development Library for twinBASIC, so if you use that package, you can remove all the declares/types/enums/consts.
 
+Compatible with VB6, VBA6, VBA7 32/64bit, and twinBASIC 32/64bit.
+
 **Usage**
 Just add modSafeCopy.bas to your project and use CopyMemorySafe in place of CopyMemory. Note you'll have to use VarPtr/StrPtr/ObjPtr since neither VB6 nor tB supports As Any in local functions. You can also use `CopyMemorySafe` as a function, if the copy is successful without being passed a null pointer and without an exception it returns `True`. 
 
